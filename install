@@ -8,11 +8,10 @@
 set -euo pipefail
 
 # ----------------------------------------------------------------------
-# Helper: clear the screen completely (reset terminal)
+# Helper: clear the screen
 # ----------------------------------------------------------------------
 clear_screen() {
-    printf '\033c'   # full reset (like clear + home)
-    # or simply: clear
+    clear
 }
 
 # ----------------------------------------------------------------------
@@ -54,8 +53,7 @@ if ! command -v sudo &>/dev/null; then
         run_as_root apt-get install -y sudo
         # Add current non‑root user to the sudo group
         if [[ $EUID -ne 0 ]]; then
-            local current_user
-            current_user=$(whoami)
+            current_user=$(whoami)          # FIXED: removed 'local'
             run_as_root usermod -aG sudo "$current_user"
             echo "User '$current_user' added to the 'sudo' group."
             echo "IMPORTANT: Please log out and back in for the group change to take effect."
@@ -81,7 +79,7 @@ if ! sudo -v; then
     exit 1
 fi
 echo "sudo privileges confirmed."
-sleep 1          # brief pause so you can read it
+sleep 1
 clear_screen
 
 # ----------------------------------------------------------------------
