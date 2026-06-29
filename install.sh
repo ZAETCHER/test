@@ -16,6 +16,9 @@ prompt_yes_no() {
     esac
 }
 
+# Clear the screen right at the launch of the script
+clear
+
 # ----------------------------------------------------------------------
 # 1. Check if sudo is installed
 # ----------------------------------------------------------------------
@@ -26,8 +29,9 @@ if ! command -v sudo &>/dev/null; then
         echo "[+] Installing sudo (Root password required)..."
         
         if [[ $EUID -eq 0 ]]; then
-            apt update && apt install -y sudo
+            apt-get update && apt-get install -y sudo
             echo "[*] You are running as root; skipping user group addition."
+            read -p "Press [Enter] to continue..."
         else
             su -c "apt-get update && apt-get install -y sudo && usermod -aG sudo $USER"
             echo "[+] User '$USER' added to the 'sudo' group."
@@ -43,36 +47,47 @@ fi
 # ----------------------------------------------------------------------
 # 2. Verify that the current user can execute sudo commands
 # ----------------------------------------------------------------------
+clear
 echo "=== Checking sudo privileges ==="
 if ! sudo -v; then
     echo "[-] ERROR: You do not have permission to run sudo commands."
     exit 1
 fi
 echo "[+] Sudo privileges confirmed."
+sleep 1
 
 # ----------------------------------------------------------------------
 # 3. Perform system update and upgrade
 # ----------------------------------------------------------------------
+clear
 echo "=== Updating package lists and upgrading packages ==="
-sudo apt update
-sudo apt upgrade -y
+sudo apt-get update
+sudo apt-get upgrade -y
+echo "[+] System update and upgrade completed."
+read -p "Press [Enter] to proceed to optional tools..."
 
 # ----------------------------------------------------------------------
 # 4. Optional: install nala
 # ----------------------------------------------------------------------
+clear
 echo "=== Optional: nala installation ==="
 if command -v nala &>/dev/null; then
     echo "[*] nala is already installed."
 else
     if prompt_yes_no "[?] Would you like to install 'nala' (a faster, prettier apt front-end)?"; then
         echo "[+] Installing nala..."
-        sudo apt install -y nala
+        sudo apt-get install -y nala
         echo "[+] nala installed successfully."
     else
         echo "[*] Skipping nala installation."
     fi
 fi
+read -p "Press [Enter] to finish..."
 
+# ----------------------------------------------------------------------
+# Final Status Screen
+# ----------------------------------------------------------------------
+clear
 echo "============================================"
 echo "   Pre-flight initialization completed!     "
 echo "============================================"
