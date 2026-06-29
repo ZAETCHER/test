@@ -19,7 +19,13 @@ NC='\033[0m' # No Color (Reset)
 prompt_yes_no() {
     local prompt="$1"
     local answer
-    read -r -p -e "$(echo -e "${CYAN}${prompt} ${YELLOW}[Y/n]: ${NC}")" answer
+    
+    # Print the colored prompt text without a newline (-n)
+    echo -e -n "${CYAN}${prompt} ${YELLOW}[Y/n]: ${NC}"
+    
+    # Read the user input safely
+    read -r answer
+    
     case "$answer" in
         [Nn]*) return 1 ;;
         *)     return 0 ;;
