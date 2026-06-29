@@ -38,7 +38,6 @@ prompt_yes_no() {
 # Helper: Package Selection UI
 # ----------------------------------------------------------------------
 handle_de_selection() {
-    # Using bash namerefs (local -n) to pass arrays into the function
     local -n pkgs=$1
     local -n desc=$2
     
@@ -55,25 +54,27 @@ handle_de_selection() {
     echo -e "${YELLOW}Enter the numbers of the packages you want to install, separated by spaces.${NC}"
     echo -e "${YELLOW}(Example: 1 2 4 5 7)${NC}"
     
-    local user_input
-    read -r -p "> " user_input
+    # [FIX] Read directly into a bash array to prevent word-splitting warnings
+    local -a user_array
+    read -r -p "> " -a user_array
     
-    # Build the installation string and display list based on user input
-    local selected_packages=""
+    # [FIX] Use an array for selected packages instead of a raw string
+    local -a selected_packages=()
     local display_packages=""
     
-    for num in $user_input; do
+    for num in "${user_array[@]}"; do
         if [[ "$num" =~ ^[0-9]+$ ]]; then
             local idx=$((num-1))
             # Verify the array index actually exists
             if [[ -n "${pkgs[$idx]:-}" ]]; then
-                selected_packages+=" ${pkgs[$idx]}"
+                selected_packages+=( "${pkgs[$idx]}" )
                 display_packages+="\n  - ${pkgs[$idx]}"
             fi
         fi
     done
     
-    if [[ -z "$selected_packages" ]]; then
+    # Check if the array is empty
+    if [[ ${#selected_packages[@]} -eq 0 ]]; then
         echo -e "${RED}❌ No valid packages selected. Skipping DE installation.${NC}"
         sleep 2
         return
@@ -87,7 +88,8 @@ handle_de_selection() {
     
     if prompt_yes_no "❓ Do you want to proceed and install these packages now?"; then
         echo -e "${GREEN}📥 Installing selected packages...${NC}"
-        sudo $PKG_MGR install -y $selected_packages
+        # [FIX] Safely expand the array here with quotes
+        sudo "$PKG_MGR" install -y "${selected_packages[@]}"
         echo -e "${GREEN}✅ Desktop Environment installation complete!${NC}"
     else
         echo -e "${YELLOW}⏭️  Installation aborted by user.${NC}"
@@ -139,7 +141,8 @@ if ! command -v sudo &>/dev/null; then
             echo -e "${YELLOW}⚠️ You are running as root; skipping user group addition.${NC}"
             read -r -p "Press [Enter] to continue..."
         else
-            su -c "apt-get update && apt-get install -y sudo && /usr/sbin/usermod -aG sudo $USER"
+            # Safely quote $USER to satisfy linters
+            su -c "apt-get update && apt-get install -y sudo && /usr/sbin/usermod -aG sudo '$USER'"
             
             clear
             echo -e "${GREEN}==========================================================${NC}"
@@ -274,13 +277,11 @@ case "$de_choice" in
         handle_de_selection pkgs desc
         ;;
     3)
-        # GNOME placeholders - Edit these lists as you see fit!
         pkgs=( "gnome-core" "network-manager-gnome" "gdm3" "firefox-esr" "gnome-tweaks" )
         desc=( "Core GNOME desktop environment" "Network Manager applet" "GNOME display manager" "Firefox browser" "GNOME customization tool" )
         handle_de_selection pkgs desc
         ;;
     4)
-        # GNOME placeholders - Edit these lists as you see fit!
         pkgs=( "gnome-session" "mutter" "gdm3" "gnome-terminal" "firefox-esr" )
         desc=( "Absolute barebones GNOME session" "GNOME window manager" "GNOME display manager" "Terminal emulator" "Firefox browser" )
         handle_de_selection pkgs desc
