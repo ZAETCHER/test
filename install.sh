@@ -35,10 +35,9 @@ prompt_yes_no() {
 }
 
 # ----------------------------------------------------------------------
-# Helper: Package Selection UI
+# Helper: Package Selection UI (clean, simple list)
 # ----------------------------------------------------------------------
 handle_de_selection() {
-    # Use different names for the namerefs to avoid circular warnings
     local -n _pkgs=$1
     local -n _desc=$2
 
@@ -46,12 +45,10 @@ handle_de_selection() {
     echo -e "${BLUE}=== 🖥️  Select Packages to Install ===${NC}"
     echo -e "Choose the packages you want in your custom build.\n"
 
-    # Dynamically print the numbered list
+    # Print a clean, numbered list – each on its own line
     for i in "${!_pkgs[@]}"; do
-        printf "%s%2d%s %s%-20s%s - %s\n" \
-            "${CYAN}" "$((i+1))" "${NC}" \
-            "${GREEN}" "${_pkgs[$i]}" "${NC}" \
-            "${_desc[$i]}"
+        printf "${CYAN}%2d)${NC} ${GREEN}%s${NC} - %s\n" \
+            "$((i+1))" "${_pkgs[$i]}" "${_desc[$i]}"
     done
 
     echo ""
