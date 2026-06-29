@@ -98,7 +98,47 @@ echo -e "${GREEN}✅ Sudo privileges confirmed.${NC}"
 sleep 1
 
 # ----------------------------------------------------------------------
-# 3. Perform system update and upgrade
+# 3. Check and Configure Debian Repositories (contrib non-free non-free-firmware)
+# ----------------------------------------------------------------------
+clear
+echo -e "${BLUE}=== 📋 Checking Repository Components ===${NC}"
+
+# Check if components are missing from active lines in sources.list
+MISSING_COMPONENTS=""
+if ! grep -E '^deb(-src)?\s+' /etc/apt/sources.list | grep -q 'contrib'; then
+    MISSING_COMPONENTS="contrib"
+fi
+if ! grep -E '^deb(-src)?\s+' /etc/apt/sources.list | grep -q 'non-free '; then
+    MISSING_COMPONENTS="${MISSING_COMPONENTS:+$MISSING_COMPONENTS }non-free"
+fi
+if ! grep -E '^deb(-src)?\s+' /etc/apt/sources.list | grep -q 'non-free-firmware'; then
+    MISSING_COMPONENTS="${MISSING_COMPONENTS:+$MISSING_COMPONENTS }non-free-firmware"
+fi
+
+if [ -n "$MISSING_COMPONENTS" ]; then
+    echo -e "${YELLOW}⚠️  Your /etc/apt/sources.list is missing: ${MISSING_COMPONENTS}${NC}"
+    if prompt_yes_no "❓ Would you like to smoothly append these components after 'main'?"; then
+        echo -e "${GREEN}⚙️ Updating repository paths...${NC}"
+        
+        # 1. Safely back up the current sources.list just in case
+        sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
+        
+        # 2. Run clean sed edits to append components safely only if they don't already exist on that line
+        sudo sed -i -E '/^deb(-src)?\s+/ { /contrib/!s/\bmain\b/main contrib/ }' /etc/apt/sources.list
+        sudo sed -i -E '/^deb(-src)?\s+/ { /non-free /!s/\bmain\b/main non-free/ }' /etc/apt/sources.list
+        sudo sed -i -E '/^deb(-src)?\s+/ { /non-free-firmware/!s/\bmain\b/main non-free-firmware/ }' /etc/apt/sources.list
+        
+        echo -e "${GREEN}✅ Successfully updated /etc/apt/sources.list! Backup saved as sources.list.bak${NC}"
+    else
+        echo -e "${YELLOW}⏭️  Keeping current repository components untouched.${NC}"
+    fi
+else
+    echo -e "${GREEN}✅ Repositories already include contrib, non-free, and non-free-firmware.${NC}"
+fi
+sleep 2
+
+# ----------------------------------------------------------------------
+# 4. Perform system update and upgrade
 # ----------------------------------------------------------------------
 clear
 echo -e "${BLUE}=== 🔄 Updating package lists and upgrading packages ===${NC}"
@@ -109,7 +149,7 @@ echo ""
 read -r -p "Press [Enter] to proceed to package manager configuration..."
 
 # ----------------------------------------------------------------------
-# 4. Optional: Package Manager Selection (Apt vs Nala)
+# 5. Optional: Package Manager Selection (Apt vs Nala)
 # ----------------------------------------------------------------------
 clear
 echo -e "${BLUE}=== 📦 Package Manager Enhancement Selection ===${NC}"
@@ -151,9 +191,3 @@ echo -e " Persistent System Settings Variable Set:"
 echo -e " Preferred Package Manager: ${YELLOW}\$PKG_MGR${NC} -> ${GREEN}${PKG_MGR}${NC}"
 echo -e "${GREEN}===============================================${NC}"
 echo ""
-
-# ----------------------------------------------------------------------
-# FUTURE CODING EXAMPLE (How to use the variable later in your script):
-# ----------------------------------------------------------------------
-# echo "Installing curl and git using your preferred package manager..."
-# sudo $PKG_MGR install -y curl git
