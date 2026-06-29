@@ -14,6 +14,11 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color (Reset)
 
 # ----------------------------------------------------------------------
+# Global Variables (Persistence Tracking)
+# ----------------------------------------------------------------------
+PKG_MGR="apt" # Default package manager fallback
+
+# ----------------------------------------------------------------------
 # Helper: prompt with default Yes (Enter = Yes)
 # ----------------------------------------------------------------------
 prompt_yes_no() {
@@ -101,26 +106,39 @@ sudo apt-get update
 sudo apt-get upgrade -y
 echo -e "${GREEN}✅ System update and upgrade completed successfully!${NC}"
 echo ""
-read -r -p "Press [Enter] to proceed to optional tools..."
+read -r -p "Press [Enter] to proceed to package manager configuration..."
 
 # ----------------------------------------------------------------------
-# 4. Optional: install nala
+# 4. Optional: Package Manager Selection (Apt vs Nala)
 # ----------------------------------------------------------------------
 clear
-echo -e "${BLUE}=== 📦 Optional: nala installation ===${NC}"
-if command -v nala &>/dev/null; then
-    echo -e "${YELLOW}📦 nala is already installed.${NC}"
-else
-    if prompt_yes_no "❓ Would you like to install 'nala' (a faster, prettier apt front-end)?"; then
+echo -e "${BLUE}=== 📦 Package Manager Enhancement Selection ===${NC}"
+echo -e "By default, Debian uses ${CYAN}apt${NC}. However, you can upgrade to ${GREEN}nala${NC}."
+echo -e ""
+echo -e "${YELLOW}Why use Nala over standard Apt?${NC}"
+echo -e "  🚀 ${GREEN}Parallel Downloads:${NC} Downloads multiple packages simultaneously (much faster)."
+echo -e "  ✨ ${GREEN}Beautiful UI:${NC} Clean layout, clear error logs, and structural progress bars."
+echo -e "  📜 ${GREEN}History Tracking:${NC} Easily undo, redo, or audit package installation history."
+echo -e "  ⚡ ${GREEN}Smart Mirrors:${NC} Automatically tests and selects the fastest download mirrors."
+echo -e "----------------------------------------------------------------------"
+
+if prompt_yes_no "❓ Do you want to install Nala and use it for subsequent installations?"; then
+    if command -v nala &>/dev/null; then
+        echo -e "${YELLOW}📦 nala is already installed on this system.${NC}"
+        PKG_MGR="nala"
+    else
         echo -e "${GREEN}📥 Installing nala...${NC}"
         sudo apt-get install -y nala
         echo -e "${GREEN}✅ nala installed successfully.${NC}"
-    else
-        echo -e "${YELLOW}⏭️ Skipping nala installation.${NC}"
+        PKG_MGR="nala"
     fi
+else
+    echo -e "${YELLOW}⏭️  Skipping Nala. Staying with default standard 'apt'.${NC}"
+    PKG_MGR="apt"
 fi
 echo ""
-read -r -p "Press [Enter] to finish..."
+echo -e "ℹ️  Current package manager configuration set to: ${GREEN}$PKG_MGR${NC}"
+read -r -p "Press [Enter] to view execution summary..."
 
 # ----------------------------------------------------------------------
 # Final Status Screen
@@ -129,3 +147,13 @@ clear
 echo -e "${GREEN}===============================================${NC}"
 echo -e "${GREEN}🎉   Pre-flight initialization completed!     🎉${NC}"
 echo -e "${GREEN}===============================================${NC}"
+echo -e " Persistent System Settings Variable Set:"
+echo -e " Preferred Package Manager: ${YELLOW}\$PKG_MGR${NC} -> ${GREEN}${PKG_MGR}${NC}"
+echo -e "${GREEN}===============================================${NC}"
+echo ""
+
+# ----------------------------------------------------------------------
+# FUTURE CODING EXAMPLE (How to use the variable later in your script):
+# ----------------------------------------------------------------------
+# echo "Installing curl and git using your preferred package manager..."
+# sudo $PKG_MGR install -y curl git
