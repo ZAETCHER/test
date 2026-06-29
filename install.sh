@@ -37,12 +37,40 @@ prompt_yes_no() {
     esac
 }
 
-# Clear the screen right at the launch of the script
+# ======================================================================
+# WELCOME SCREEN & ASCII ART
+# ======================================================================
 clear
+echo -e "${CYAN}"
+echo " __      __  _____    _______  ______   _____          _   _ "
+echo " \ \    / / |  __ \  |  _____||  ____ \ |_   _|   /\   | \ | |"
+echo "  \ \  / /  | |__) | | |__    | |___) |  | |     /  \  |  \| |"
+echo "   \ \/ /   |  _  /  |  __|   |  ____ (  | |    / /\ \ | . \ |"
+echo "    \  /    | | \ \  | |____  | |___) | _| |_  / ____ \| |\  |"
+echo "     \/     |_|  \_\ |_______||______/ |_____|/_/    \_\_| \_|"
+echo -e "${NC}"
+echo -e "${GREEN}======================================================================${NC}"
+echo -e "${YELLOW}⚡ WHAT?${NC}"
+echo -e "  A zero-fuss Bash script for a minimal GNOME/KDE install on Debian 13—"
+echo -e "  no cruft, no bloatware, just the bare essentials."
+echo ""
+echo -e "${YELLOW}⚡ WHY?${NC}"
+echo -e "  Because 'apt install gnome' pulls in 500+ packages you'll never use."
+echo -e "  This script trims the fat, installing only the core DE components so"
+echo -e "  you get a lean, responsive desktop that doesn't waste disk, memory,"
+echo -e "  or CPU cycles. Perfect for minimalists, homelabbers, and anyone who"
+echo -e "  actually knows what they want on their system."
+echo ""
+echo -e "${YELLOW}🎯 TARGET:${NC} Debian 13 (Trixie) and current Debian-derived distributions."
+echo -e "${GREEN}======================================================================${NC}"
+echo ""
+read -r -p "Press [Enter] to start pre-flight environment checks..."
+
 
 # ----------------------------------------------------------------------
 # 1. Check if sudo is installed
 # ----------------------------------------------------------------------
+clear
 echo -e "${BLUE}=== 🔍 Checking for sudo ===${NC}"
 if ! command -v sudo &>/dev/null; then
     echo -e "${RED}❌ sudo is not installed on this system.${NC}"
