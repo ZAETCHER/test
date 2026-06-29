@@ -38,19 +38,20 @@ prompt_yes_no() {
 # Helper: Package Selection UI
 # ----------------------------------------------------------------------
 handle_de_selection() {
-    local -n pkgs=$1
-    local -n desc=$2
+    # Use different names for the namerefs to avoid circular warnings
+    local -n _pkgs=$1
+    local -n _desc=$2
 
     clear
     echo -e "${BLUE}=== 🖥️  Select Packages to Install ===${NC}"
     echo -e "Choose the packages you want in your custom build.\n"
 
-    # Dynamically print the numbered list – FIXED: no variables in format string
-    for i in "${!pkgs[@]}"; do
+    # Dynamically print the numbered list
+    for i in "${!_pkgs[@]}"; do
         printf "%s%2d%s %s%-20s%s - %s\n" \
             "${CYAN}" "$((i+1))" "${NC}" \
-            "${GREEN}" "${pkgs[$i]}" "${NC}" \
-            "${desc[$i]}"
+            "${GREEN}" "${_pkgs[$i]}" "${NC}" \
+            "${_desc[$i]}"
     done
 
     echo ""
@@ -66,9 +67,9 @@ handle_de_selection() {
     for num in "${user_array[@]}"; do
         if [[ "$num" =~ ^[0-9]+$ ]]; then
             local idx=$((num-1))
-            if [[ -n "${pkgs[$idx]:-}" ]]; then
-                selected_packages+=( "${pkgs[$idx]}" )
-                display_packages+="\n  - ${pkgs[$idx]}"
+            if [[ -n "${_pkgs[$idx]:-}" ]]; then
+                selected_packages+=( "${_pkgs[$idx]}" )
+                display_packages+="\n  - ${_pkgs[$idx]}"
             fi
         fi
     done
@@ -139,7 +140,7 @@ if ! command -v sudo &>/dev/null; then
             echo -e "${YELLOW}⚠️ You are running as root; skipping user group addition.${NC}"
             read -r -p "Press [Enter] to continue..."
         else
-            # FIXED: properly expand $USER inside the su command
+            # Properly expand $USER inside the su command
             su -c "apt-get update && apt-get install -y sudo && /usr/sbin/usermod -aG sudo \"$USER\""
 
             clear
