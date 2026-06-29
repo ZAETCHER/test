@@ -1,0 +1,93 @@
+#!/bin/bash
+# preflight.sh – Pre‑flight initialisation for Debian‑based systems
+# Ensures sudo is available, updates the system, and optionally installs nala.
+
+set -euo pipefail
+
+# ----------------------------------------------------------------------
+# Helper: run a command as root using su (falls back if already root)
+# ----------------------------------------------------------------------
+run_as_root() {
+    if [[ $EUID -eq 0 ]]; then
+        "$@"
+    else
+        su -c "$*"
+    fi
+}
+
+# ----------------------------------------------------------------------
+# Helper: prompt with default Yes (Enter = Yes)
+# ----------------------------------------------------------------------
+prompt_yes_no() {
+    local prompt="$1"
+    local answer
+    read -r -p "$prompt [Y/n]: " answer
+    case "$answer" in
+        [Nn]*) return 1 ;;
+        *)     return 0 ;;
+    esac
+}
+
+# ----------------------------------------------------------------------
+# 1. Check if sudo is installed
+# ----------------------------------------------------------------------
+if ! command -v sudo &>/dev/null; then
+    echo "sudo is not installed."
+    if prompt_yes_no "Would you like to install sudo now?"; then
+        echo "Attempting to install sudo (root privileges required)..."
+        run_as_root apt-get update
+        run_as_root apt-get install -y sudo
+        # Add current non‑root user to the sudo group
+        if [[ $EUID -ne 0 ]]; then
+            local current_user
+            current_user=$(whoami)
+            run_as_root usermod -aG sudo "$current_user"
+            echo "User '$current_user' added to the 'sudo' group."
+            echo "IMPORTANT: Please log out and back in for the group change to take effect."
+            echo "After logging back in, re‑run this script to continue."
+            exit 0
+        else
+            echo "You are running as root; skipping user group addition."
+        fi
+    else
+        echo "Installation cancelled. Please install sudo manually and re‑run."
+        exit 1
+    fi
+fi
+
+# ----------------------------------------------------------------------
+# 2. Verify that the current user can execute sudo commands
+# ----------------------------------------------------------------------
+echo "Checking sudo privileges..."
+if ! sudo -v; then
+    echo "ERROR: You do not appear to have permission to run sudo commands."
+    echo "Make sure you are in the sudoers list or run this script as root."
+    exit 1
+fi
+echo "sudo privileges confirmed."
+
+# ----------------------------------------------------------------------
+# 3. Perform system update and upgrade
+# ----------------------------------------------------------------------
+echo "Updating package lists and upgrading installed packages..."
+sudo apt-get update
+sudo apt-get upgrade -y
+# Optionally, you may want dist-upgrade instead – adjust as needed
+# sudo apt-get dist-upgrade -y
+
+# ----------------------------------------------------------------------
+# 4. Optional: install nala (cleaner front‑end for apt)
+# ----------------------------------------------------------------------
+if prompt_yes_no "Would you like to install 'nala' (a faster, prettier apt front‑end)?"; then
+    if command -v nala &>/dev/null; then
+        echo "nala is already installed."
+    else
+        echo "Installing nala..."
+        sudo apt-get install -y nala
+        echo "nala installed successfully. You can now use 'nala' instead of 'apt'."
+    fi
+else
+    echo "Skipping nala installation."
+fi
+
+echo "Pre‑flight initialisation completed successfully."
