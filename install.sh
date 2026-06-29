@@ -26,7 +26,7 @@ if ! command -v sudo &>/dev/null; then
         echo "[+] Installing sudo (Root password required)..."
         
         if [[ $EUID -eq 0 ]]; then
-            apt-get update && apt-get install -y sudo
+            apt update && apt install -y sudo
             echo "[*] You are running as root; skipping user group addition."
         else
             su -c "apt-get update && apt-get install -y sudo && usermod -aG sudo $USER"
@@ -54,8 +54,8 @@ echo "[+] Sudo privileges confirmed."
 # 3. Perform system update and upgrade
 # ----------------------------------------------------------------------
 echo "=== Updating package lists and upgrading packages ==="
-sudo apt-get update
-sudo apt-get upgrade -y
+sudo apt update
+sudo apt upgrade -y
 
 # ----------------------------------------------------------------------
 # 4. Optional: install nala
@@ -66,7 +66,7 @@ if command -v nala &>/dev/null; then
 else
     if prompt_yes_no "[?] Would you like to install 'nala' (a faster, prettier apt front-end)?"; then
         echo "[+] Installing nala..."
-        sudo apt-get install -y nala
+        sudo apt install -y nala
         echo "[+] nala installed successfully."
     else
         echo "[*] Skipping nala installation."
