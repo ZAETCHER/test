@@ -25,16 +25,74 @@ prompt_yes_no() {
     local prompt="$1"
     local answer
     
-    # Print the colored prompt text without a newline (-n)
     echo -e -n "${CYAN}${prompt} ${YELLOW}[Y/n]: ${NC}"
-    
-    # Read the user input safely
     read -r answer
     
     case "$answer" in
         [Nn]*) return 1 ;;
         *)     return 0 ;;
     esac
+}
+
+# ----------------------------------------------------------------------
+# Helper: Package Selection UI
+# ----------------------------------------------------------------------
+handle_de_selection() {
+    # Using bash namerefs (local -n) to pass arrays into the function
+    local -n pkgs=$1
+    local -n desc=$2
+    
+    clear
+    echo -e "${BLUE}=== 🖥️  Select Packages to Install ===${NC}"
+    echo -e "Choose the packages you want in your custom build.\n"
+    
+    # Dynamically print the numbered list
+    for i in "${!pkgs[@]}"; do
+        printf "  ${CYAN}%2d)${NC} ${GREEN}%-20s${NC} - %s\n" "$((i+1))" "${pkgs[$i]}" "${desc[$i]}"
+    done
+    
+    echo ""
+    echo -e "${YELLOW}Enter the numbers of the packages you want to install, separated by spaces.${NC}"
+    echo -e "${YELLOW}(Example: 1 2 4 5 7)${NC}"
+    
+    local user_input
+    read -r -p "> " user_input
+    
+    # Build the installation string and display list based on user input
+    local selected_packages=""
+    local display_packages=""
+    
+    for num in $user_input; do
+        if [[ "$num" =~ ^[0-9]+$ ]]; then
+            local idx=$((num-1))
+            # Verify the array index actually exists
+            if [[ -n "${pkgs[$idx]:-}" ]]; then
+                selected_packages+=" ${pkgs[$idx]}"
+                display_packages+="\n  - ${pkgs[$idx]}"
+            fi
+        fi
+    done
+    
+    if [[ -z "$selected_packages" ]]; then
+        echo -e "${RED}❌ No valid packages selected. Skipping DE installation.${NC}"
+        sleep 2
+        return
+    fi
+    
+    clear
+    echo -e "${BLUE}=== 📝 Verification ===${NC}"
+    echo -e "You have selected the following packages to install via ${YELLOW}${PKG_MGR}${NC}:"
+    echo -e "${GREEN}${display_packages}${NC}"
+    echo ""
+    
+    if prompt_yes_no "❓ Do you want to proceed and install these packages now?"; then
+        echo -e "${GREEN}📥 Installing selected packages...${NC}"
+        sudo $PKG_MGR install -y $selected_packages
+        echo -e "${GREEN}✅ Desktop Environment installation complete!${NC}"
+    else
+        echo -e "${YELLOW}⏭️  Installation aborted by user.${NC}"
+    fi
+    sleep 2
 }
 
 # ======================================================================
@@ -66,7 +124,6 @@ echo -e "${GREEN}===============================================================
 echo ""
 read -r -p "Press [Enter] to start pre-flight environment checks..."
 
-
 # ----------------------------------------------------------------------
 # 1. Check if sudo is installed
 # ----------------------------------------------------------------------
@@ -84,7 +141,6 @@ if ! command -v sudo &>/dev/null; then
         else
             su -c "apt-get update && apt-get install -y sudo && /usr/sbin/usermod -aG sudo $USER"
             
-            # Wipes the screen for the critical logout section
             clear
             echo -e "${GREEN}==========================================================${NC}"
             echo -e "${GREEN}✅ User '${USER}' successfully added to the 'sudo' group!${NC}"
@@ -114,7 +170,7 @@ if ! command -v sudo &>/dev/null; then
 fi
 
 # ----------------------------------------------------------------------
-# 2. Verify that the current user can execute sudo commands
+# 2. Verify sudo privileges
 # ----------------------------------------------------------------------
 clear
 echo -e "${BLUE}=== 🔐 Checking sudo privileges ===${NC}"
@@ -126,12 +182,10 @@ echo -e "${GREEN}✅ Sudo privileges confirmed.${NC}"
 sleep 1
 
 # ----------------------------------------------------------------------
-# 3. Check and Configure Debian Repositories (contrib non-free non-free-firmware)
+# 3. Check and Configure Debian Repositories
 # ----------------------------------------------------------------------
 clear
 echo -e "${BLUE}=== 📋 Checking Repository Components ===${NC}"
-
-# Check if components are missing from active lines in sources.list
 MISSING_COMPONENTS=""
 if ! grep -E '^deb(-src)?\s+' /etc/apt/sources.list | grep -q 'contrib'; then
     MISSING_COMPONENTS="contrib"
@@ -147,15 +201,10 @@ if [ -n "$MISSING_COMPONENTS" ]; then
     echo -e "${YELLOW}⚠️  Your /etc/apt/sources.list is missing: ${MISSING_COMPONENTS}${NC}"
     if prompt_yes_no "❓ Would you like to smoothly append these components after 'main'?"; then
         echo -e "${GREEN}⚙️ Updating repository paths...${NC}"
-        
-        # 1. Safely back up the current sources.list just in case
         sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
-        
-        # 2. Run clean sed edits to append components safely only if they don't already exist on that line
         sudo sed -i -E '/^deb(-src)?\s+/ { /contrib/!s/\bmain\b/main contrib/ }' /etc/apt/sources.list
         sudo sed -i -E '/^deb(-src)?\s+/ { /non-free /!s/\bmain\b/main non-free/ }' /etc/apt/sources.list
         sudo sed -i -E '/^deb(-src)?\s+/ { /non-free-firmware/!s/\bmain\b/main non-free-firmware/ }' /etc/apt/sources.list
-        
         echo -e "${GREEN}✅ Successfully updated /etc/apt/sources.list! Backup saved as sources.list.bak${NC}"
     else
         echo -e "${YELLOW}⏭️  Keeping current repository components untouched.${NC}"
@@ -177,45 +226,78 @@ echo ""
 read -r -p "Press [Enter] to proceed to package manager configuration..."
 
 # ----------------------------------------------------------------------
-# 5. Optional: Package Manager Selection (Apt vs Nala)
+# 5. Package Manager Selection
 # ----------------------------------------------------------------------
 clear
 echo -e "${BLUE}=== 📦 Package Manager Enhancement Selection ===${NC}"
 echo -e "By default, Debian uses ${CYAN}apt${NC}. However, you can upgrade to ${GREEN}nala${NC}."
 echo -e ""
-echo -e "${YELLOW}Why use Nala over standard Apt?${NC}"
-echo -e "  🚀 ${GREEN}Parallel Downloads:${NC} Downloads multiple packages simultaneously (much faster)."
-echo -e "  ✨ ${GREEN}Beautiful UI:${NC} Clean layout, clear error logs, and structural progress bars."
-echo -e "  📜 ${GREEN}History Tracking:${NC} Easily undo, redo, or audit package installation history."
-echo -e "  ⚡ ${GREEN}Smart Mirrors:${NC} Automatically tests and selects the fastest download mirrors."
-echo -e "----------------------------------------------------------------------"
-
 if prompt_yes_no "❓ Do you want to install Nala and use it for subsequent installations?"; then
     if command -v nala &>/dev/null; then
         echo -e "${YELLOW}📦 nala is already installed on this system.${NC}"
-        PKG_MGR="nala"
     else
         echo -e "${GREEN}📥 Installing nala...${NC}"
         sudo apt-get install -y nala
         echo -e "${GREEN}✅ nala installed successfully.${NC}"
-        PKG_MGR="nala"
     fi
+    PKG_MGR="nala"
 else
     echo -e "${YELLOW}⏭️  Skipping Nala. Staying with default standard 'apt'.${NC}"
     PKG_MGR="apt"
 fi
+sleep 1
+
+# ----------------------------------------------------------------------
+# 6. Desktop Environment Configuration & Installation
+# ----------------------------------------------------------------------
+clear
+echo -e "${BLUE}=== 🖥️  Desktop Environment (DE) Selection ===${NC}"
+echo -e "Choose a minimal Desktop Environment to install:"
+echo -e "  ${CYAN}1)${NC} KDE Minimal"
+echo -e "  ${CYAN}2)${NC} KDE Ultra Minimal (Only if you know what you're doing)"
+echo -e "  ${CYAN}3)${NC} GNOME Minimal"
+echo -e "  ${CYAN}4)${NC} GNOME Ultra Minimal"
+echo -e "  ${CYAN}5)${NC} Skip DE Installation"
 echo ""
-echo -e "ℹ️  Current package manager configuration set to: ${GREEN}$PKG_MGR${NC}"
-read -r -p "Press [Enter] to view execution summary..."
+
+read -r -p "Select an option [1-5]: " de_choice
+
+case "$de_choice" in
+    1)
+        pkgs=( "kde-plasma-desktop" "plasma-nm" "sddm-theme-breeze" "kwin-addons" "firefox-esr" "synaptic" "vlc" "kdeconnect" "neovim" "btop" "fastfetch" "kcalc" "ark" "gwenview" )
+        desc=( "Core Plasma desktop environment" "Network Manager integration" "Breeze theme for SDDM" "Additional KWin effects" "Firefox browser" "Graphical package manager" "Media player" "Phone integration" "Text editor (Vim-fork)" "Resource monitor" "System info fetcher" "Calculator" "Archive manager" "Image viewer" )
+        handle_de_selection pkgs desc
+        ;;
+    2)
+        pkgs=( "plasma-desktop" "sddm" "firefox-esr" "vlc" "plasma-nm" )
+        desc=( "Absolute barebones Plasma desktop" "Display manager / login screen" "Firefox browser" "Media player" "Network Manager integration" )
+        handle_de_selection pkgs desc
+        ;;
+    3)
+        # GNOME placeholders - Edit these lists as you see fit!
+        pkgs=( "gnome-core" "network-manager-gnome" "gdm3" "firefox-esr" "gnome-tweaks" )
+        desc=( "Core GNOME desktop environment" "Network Manager applet" "GNOME display manager" "Firefox browser" "GNOME customization tool" )
+        handle_de_selection pkgs desc
+        ;;
+    4)
+        # GNOME placeholders - Edit these lists as you see fit!
+        pkgs=( "gnome-session" "mutter" "gdm3" "gnome-terminal" "firefox-esr" )
+        desc=( "Absolute barebones GNOME session" "GNOME window manager" "GNOME display manager" "Terminal emulator" "Firefox browser" )
+        handle_de_selection pkgs desc
+        ;;
+    *)
+        echo -e "${YELLOW}⏭️  Skipping Desktop Environment installation.${NC}"
+        sleep 1
+        ;;
+esac
 
 # ----------------------------------------------------------------------
 # Final Status Screen
 # ----------------------------------------------------------------------
 clear
 echo -e "${GREEN}===============================================${NC}"
-echo -e "${GREEN}🎉   Pre-flight initialization completed!     🎉${NC}"
+echo -e "${GREEN}🎉   System initialization completed!         🎉${NC}"
 echo -e "${GREEN}===============================================${NC}"
-echo -e " Persistent System Settings Variable Set:"
-echo -e " Preferred Package Manager: ${YELLOW}\$PKG_MGR${NC} -> ${GREEN}${PKG_MGR}${NC}"
+echo -e " Preferred Package Manager: ${GREEN}${PKG_MGR}${NC}"
 echo -e "${GREEN}===============================================${NC}"
 echo ""
