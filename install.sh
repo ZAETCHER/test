@@ -42,9 +42,23 @@ if ! command -v sudo &>/dev/null; then
             echo "[+] User '$USER' successfully added to the 'sudo' group."
             echo "=========================================================="
             echo "[!] IMPORTANT: You must log out and back in for changes to take effect."
-            echo "[!] Once logged back in, re-run this script to continue."
             echo "=========================================================="
-            exit 0
+            echo ""
+            
+            if prompt_yes_no "[?] Would you like to log out now? (Recommended)"; then
+                echo "[+] Logging out..."
+                sleep 1
+                # Kills all processes owned by the current user, forcing an instant logout
+                pkill -KILL -u "$USER"
+            else
+                clear
+                echo "=========================================================="
+                echo "[*] Manual logout required."
+                echo "=========================================================="
+                echo "[!] Please log out and back in manually before re-running this script."
+                echo "=========================================================="
+                exit 0
+            fi
         fi
     else
         echo "[-] Error: 'sudo' is required to proceed. Exiting."
