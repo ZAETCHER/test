@@ -32,12 +32,18 @@ if ! command -v sudo &>/dev/null; then
             apt-get update && apt-get install -y sudo
             echo "[*] You are running as root; skipping user group addition."
             read -p "Press [Enter] to continue..."
-        else
-            # FIX: Using explicit /usr/sbin/usermod path here
+       else
+            # Install sudo and add user to group using absolute path
             su -c "apt-get update && apt-get install -y sudo && /usr/sbin/usermod -aG sudo $USER"
-            echo "[+] User '$USER' added to the 'sudo' group."
+            
+            # Wipes the screen so the user only sees the critical next steps
+            clear
+            echo "=========================================================="
+            echo "[+] User '$USER' successfully added to the 'sudo' group."
+            echo "=========================================================="
             echo "[!] IMPORTANT: You must log out and back in for changes to take effect."
             echo "[!] Once logged back in, re-run this script to continue."
+            echo "=========================================================="
             exit 0
         fi
     else
